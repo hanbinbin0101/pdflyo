@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拆分PDF文件 - ProPDF</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f9fafb;
+    }
+    .drop-zone {
+      border: 2px dashed #e5e7eb;
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
+    }
+    .drop-zone:hover {
+      border-color: #ef4444;
+      background-color: rgba(239, 68, 68, 0.05);
+    }
+    .pdf-preview {
+      display: none;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    .pdf-preview.active {
+      display: block;
+    }
+    .page-selector {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <a href="index.html" class="text-2xl font-bold text-red-500">Pro<span class="text-gray-800">PDF</span></a>
+          </div>
+          <div class="hidden md:ml-6 md:flex md:space-x-4">
+            <a href="index.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">PDF转换</a>
+            <a href="merge-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">合并PDF</a>
+            <a href="split-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-900 hover:text-red-500">拆分PDF</a>
+            <a href="compress-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">压缩PDF</a>
+            <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">更多工具</a>
+          </div>
+        </div>
+        <div class="flex items-center">
+          <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-900">登录</a>
+          <a href="#" class="ml-4 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600">注册</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主要内容 -->
+  <main class="pt-16 pb-12">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+      <!-- 标题 -->
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">拆分PDF文件</h1>
+        <p class="text-xl text-gray-600">
+          将一页或多页从PDF文件中分离，轻松转换为独立的PDF文件。
+        </p>
+      </div>
+
+      <!-- 上传区域 -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div id="upload-section">
+          <div class="drop-zone p-10 text-center cursor-pointer">
+            <div class="max-w-xs mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <div class="text-xl font-semibold text-gray-900 mb-2">选择PDF文件</div>
+              <p class="text-gray-500 text-sm mb-4">或拖放文件到此处</p>
+              <button id="file-select-btn" class="w-full py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md transition duration-200">
+                选择PDF文件
+              </button>
+              <p class="text-gray-400 text-xs mt-3">最大文件大小: 100MB</p>
+              <input type="file" id="file-input" accept=".pdf" class="hidden" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 上传后显示的内容 -->
+        <div id="pdf-preview-section" class="hidden">
+          <div class="flex flex-col md:flex-row gap-6">
+            <!-- PDF预览和选项 -->
+            <div class="w-full md:w-2/3">
+              <div class="mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">PDF文件预览</h3>
+                <div class="pdf-preview bg-gray-100 p-2 rounded-lg">
+                  <p id="file-name" class="text-sm text-gray-600 mb-2"></p>
+                  <p id="page-count" class="text-sm text-gray-600 mb-2"></p>
+                  <canvas id="pdf-canvas" class="mx-auto border border-gray-300"></canvas>
+                  <div class="flex justify-between mt-4">
+                    <button id="prev-page" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">上一页</button>
+                    <span id="page-num" class="self-center text-sm text-gray-600">页码: 1 / 1</span>
+                    <button id="next-page" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">下一页</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 页面选择 -->
+            <div class="w-full md:w-1/3">
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">选择页面</h3>
+              <div class="mb-4">
+                <label for="page-input" class="block text-sm font-medium text-gray-700 mb-1">页码或页码范围:</label>
+                <input 
+                  type="text" 
+                  id="page-input" 
+                  class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" 
+                  placeholder="例如: 1,3,5-7"
+                />
+                <p class="text-xs text-gray-500 mt-1">用逗号分隔单页，用连字符指定范围</p>
+              </div>
+              <div class="mb-4">
+                <button id="split-btn" class="w-full py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md transition duration-200">
+                  拆分PDF
+                </button>
+              </div>
+              <button id="cancel-btn" class="w-full py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 处理结果 -->
+        <div id="result-section" class="hidden">
+          <div class="text-center py-8">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">PDF拆分成功!</h3>
+            <p class="text-gray-600 mb-4">您的PDF已成功拆分，现在可以下载文件。</p>
+            <a id="download-link" href="#" class="inline-block py-3 px-6 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md transition duration-200">
+              下载拆分后的PDF
+            </a>
+            <button id="new-split-btn" class="block mx-auto mt-4 py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100">
+              拆分新的PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- 加载中状态 -->
+        <div id="loading-section" class="hidden">
+          <div class="text-center py-10">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
+            <p class="mt-4 text-gray-700">正在拆分PDF文件，请稍候...</p>
+          </div>
+        </div>
+
+        <!-- 错误状态 -->
+        <div id="error-section" class="hidden">
+          <div class="text-center py-8">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">处理失败</h3>
+            <p id="error-message" class="text-gray-600 mb-4">处理PDF时出错。请检查您的文件并重试。</p>
+            <button id="try-again-btn" class="py-3 px-6 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md transition duration-200">
+              重试
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 操作说明 -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">如何拆分PDF文件</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="text-center">
+            <div class="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center text-red-500 font-bold mx-auto mb-3">1</div>
+            <h3 class="font-medium text-gray-900 mb-1">上传PDF文件</h3>
+            <p class="text-gray-500 text-sm">选择本地PDF文件或拖放至此</p>
+          </div>
+          <div class="text-center">
+            <div class="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center text-red-500 font-bold mx-auto mb-3">2</div>
+            <h3 class="font-medium text-gray-900 mb-1">选择页面</h3>
+            <p class="text-gray-500 text-sm">选择您要分离的单页或页面范围</p>
+          </div>
+          <div class="text-center">
+            <div class="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center text-red-500 font-bold mx-auto mb-3">3</div>
+            <h3 class="font-medium text-gray-900 mb-1">下载拆分后的PDF</h3>
+            <p class="text-gray-500 text-sm">获取拆分后的独立PDF文件</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 常见问题 -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">常见问题</h2>
+        <div class="space-y-4">
+          <div>
+            <h3 class="font-medium text-gray-900 mb-1">如何拆分PDF中的特定页面？</h3>
+            <p class="text-gray-500 text-sm">上传后，您可以选择特定页面或页面范围进行提取，如"1,3,5-7"表示提取第1、3页和第5到7页。</p>
+          </div>
+          <div>
+            <h3 class="font-medium text-gray-900 mb-1">拆分后的文件质量如何？</h3>
+            <p class="text-gray-500 text-sm">我们的工具会保持原始PDF的所有格式和质量，不会有任何损失。</p>
+          </div>
+          <div>
+            <h3 class="font-medium text-gray-900 mb-1">我的文件安全吗？</h3>
+            <p class="text-gray-500 text-sm">您的文件仅在浏览器中处理，不会上传到我们的服务器。处理完成后会自动删除，确保您的数据安全。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-gray-800 text-white py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div>
+          <h3 class="text-lg font-semibold mb-4">关于我们</h3>
+          <p class="text-gray-400">
+            ProPDF提供专业的PDF解决方案，让文档处理变得简单高效。
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">PDF工具</h3>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="index.html" class="hover:text-white">PDF转换</a></li>
+            <li><a href="merge-pdf.html" class="hover:text-white">合并PDF</a></li>
+            <li><a href="split-pdf.html" class="hover:text-white">拆分PDF</a></li>
+            <li><a href="compress-pdf.html" class="hover:text-white">压缩PDF</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">帮助中心</h3>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#" class="hover:text-white">使用指南</a></li>
+            <li><a href="#" class="hover:text-white">常见问题</a></li>
+            <li><a href="#" class="hover:text-white">联系我们</a></li>
+            <li><a href="#" class="hover:text-white">隐私政策</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">关注我们</h3>
+          <div class="flex space-x-4">
+            <a href="#" class="text-gray-400 hover:text-white">
+              <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-white">
+              <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.1 10.1 0 01-3.127 1.184 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+        <p>&copy; 2023 ProPDF. 保留所有权利。</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- PDF.js 库 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+  <script>
+    // 配置PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM元素
+      const dropZone = document.querySelector('.drop-zone');
+      const fileInput = document.getElementById('file-input');
+      const fileSelectBtn = document.getElementById('file-select-btn');
+      const uploadSection = document.getElementById('upload-section');
+      const previewSection = document.getElementById('pdf-preview-section');
+      const resultSection = document.getElementById('result-section');
+      const loadingSection = document.getElementById('loading-section');
+      const errorSection = document.getElementById('error-section');
+      const errorMessage = document.getElementById('error-message');
+      const fileName = document.getElementById('file-name');
+      const pageCount = document.getElementById('page-count');
+      const pageInput = document.getElementById('page-input');
+      const splitBtn = document.getElementById('split-btn');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const tryAgainBtn = document.getElementById('try-again-btn');
+      const newSplitBtn = document.getElementById('new-split-btn');
+      const downloadLink = document.getElementById('download-link');
+      const canvas = document.getElementById('pdf-canvas');
+      const ctx = canvas.getContext('2d');
+      const prevPageBtn = document.getElementById('prev-page');
+      const nextPageBtn = document.getElementById('next-page');
+      const pageNum = document.getElementById('page-num');
+      
+      // 状态变量
+      let pdfDoc = null;
+      let currentPage = 1;
+      let pdfFile = null;
+      let totalPages = 0;
+
+      // 防止浏览器默认行为
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // 视觉反馈
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+      });
+
+      function highlight() {
+        dropZone.classList.add('border-red-500');
+        dropZone.classList.add('bg-red-50');
+      }
+
+      function unhighlight() {
+        dropZone.classList.remove('border-red-500');
+        dropZone.classList.remove('bg-red-50');
+      }
+
+      // 处理拖放
+      dropZone.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      }
+
+      // 点击按钮时触发文件选择
+      fileSelectBtn.addEventListener('click', function() {
+        fileInput.click();
+      });
+
+      // 处理文件上传
+      fileInput.addEventListener('change', function() {
+        if (fileInput.files.length > 0) {
+          handleFiles(fileInput.files);
+        }
+      });
+
+      // 处理文件
+      function handleFiles(files) {
+        const file = files[0];
+        
+        // 检查文件类型
+        if (file.type !== 'application/pdf') {
+          showError('请上传PDF格式的文件');
+          return;
+        }
+        
+        // 检查文件大小
+        if (file.size > 100 * 1024 * 1024) { // 100MB
+          showError('文件大小超过100MB限制');
+          return;
+        }
+        
+        pdfFile = file;
+        fileName.textContent = `文件名: ${file.name}`;
+        
+        // 读取PDF
+        const fileReader = new FileReader();
+        fileReader.onload = function() {
+          const typedarray = new Uint8Array(this.result);
+          loadPdfJS(typedarray);
+        };
+        fileReader.readAsArrayBuffer(file);
+        
+        // 显示预览部分
+        uploadSection.classList.add('hidden');
+        previewSection.classList.remove('hidden');
+      }
+
+      // 使用PDF.js加载PDF
+      function loadPdfJS(typedarray) {
+        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+          pdfDoc = pdf;
+          totalPages = pdf.numPages;
+          pageCount.textContent = `总页数: ${totalPages}`;
+          pageInput.placeholder = `例如: 1-${totalPages}`;
+          pageNum.textContent = `页码: 1 / ${totalPages}`;
+          renderPage(1);
+        }).catch(function(error) {
+          console.error('PDF加载错误:', error);
+          showError('无法加载PDF文件');
+        });
+      }
+
+      // 渲染PDF页面
+      function renderPage(num) {
+        pdfDoc.getPage(num).then(function(page) {
+          const viewport = page.getViewport({scale: 1.0});
+          const scale = Math.min(500 / viewport.width, 700 / viewport.height);
+          const scaledViewport = page.getViewport({scale: scale});
+
+          canvas.height = scaledViewport.height;
+          canvas.width = scaledViewport.width;
+
+          const renderContext = {
+            canvasContext: ctx,
+            viewport: scaledViewport
+          };
+          
+          page.render(renderContext);
+          currentPage = num;
+          pageNum.textContent = `页码: ${num} / ${totalPages}`;
+          
+          // 更新按钮状态
+          prevPageBtn.disabled = num <= 1;
+          nextPageBtn.disabled = num >= totalPages;
+          prevPageBtn.classList.toggle('opacity-50', num <= 1);
+          nextPageBtn.classList.toggle('opacity-50', num >= totalPages);
+        });
+      }
+
+      // 上一页
+      prevPageBtn.addEventListener('click', function() {
+        if (currentPage > 1) {
+          renderPage(currentPage - 1);
+        }
+      });
+
+      // 下一页
+      nextPageBtn.addEventListener('click', function() {
+        if (currentPage < totalPages) {
+          renderPage(currentPage + 1);
+        }
+      });
+
+      // 拆分PDF
+      splitBtn.addEventListener('click', function() {
+        const pages = pageInput.value.trim();
+        if (!pages) {
+          showError('请输入要提取的页码');
+          return;
+        }
+
+        // 验证页码格式
+        if (!isValidPageFormat(pages)) {
+          showError('页码格式无效，请使用逗号分隔单页，用连字符指定范围，例如：1,3,5-7');
+          return;
+        }
+
+        // 显示加载中状态
+        previewSection.classList.add('hidden');
+        loadingSection.classList.remove('hidden');
+
+        // 创建表单数据
+        const formData = new FormData();
+        formData.append('file', pdfFile);
+        formData.append('pages', pages);
+
+        // 发送请求
+        fetch('/api/split-pdf', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          // 首先检查响应是否成功
+          if (!response.ok) {
+            // 尝试解析错误响应
+            return response.text().then(text => {
+              try {
+                // 尝试将文本解析为JSON
+                return JSON.parse(text);
+              } catch (e) {
+                // 如果不是有效的JSON，则创建一个错误对象
+                console.error('无法解析响应:', text);
+                throw new Error('服务器返回了无效的响应格式');
+              }
+            });
+          }
+          // 成功响应，解析为JSON
+          return response.json();
+        })
+        .then(data => {
+          loadingSection.classList.add('hidden');
+          
+          if (data.success) {
+            resultSection.classList.remove('hidden');
+            downloadLink.href = data.file.downloadLink;
+            downloadLink.setAttribute('download', `拆分_${pdfFile.name}`);
+          } else {
+            showError(data.message || '拆分PDF失败');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          loadingSection.classList.add('hidden');
+          showError(error.message || '网络错误，请重试');
+        });
+      });
+
+      // 验证页码格式
+      function isValidPageFormat(pagesStr) {
+        // 匹配如 "1,3,5-7" 的格式
+        const pagePattern = /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/;
+        if (!pagePattern.test(pagesStr)) {
+          return false;
+        }
+
+        // 验证每个页码范围
+        const ranges = pagesStr.split(',');
+        for (const range of ranges) {
+          if (range.includes('-')) {
+            const [start, end] = range.split('-').map(num => parseInt(num.trim(), 10));
+            if (isNaN(start) || isNaN(end) || start <= 0 || end <= 0 || start > end || start > totalPages || end > totalPages) {
+              return false;
+            }
+          } else {
+            const page = parseInt(range.trim(), 10);
+            if (isNaN(page) || page <= 0 || page > totalPages) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      // 取消按钮
+      cancelBtn.addEventListener('click', resetUI);
+      
+      // 重试按钮
+      tryAgainBtn.addEventListener('click', resetUI);
+      
+      // 拆分新文件按钮
+      newSplitBtn.addEventListener('click', resetUI);
+
+      // 重置UI
+      function resetUI() {
+        uploadSection.classList.remove('hidden');
+        previewSection.classList.add('hidden');
+        resultSection.classList.add('hidden');
+        loadingSection.classList.add('hidden');
+        errorSection.classList.add('hidden');
+        fileInput.value = '';
+        pageInput.value = '';
+        pdfFile = null;
+        pdfDoc = null;
+      }
+
+      // 显示错误
+      function showError(message) {
+        errorMessage.textContent = message || '发生未知错误';
+        uploadSection.classList.add('hidden');
+        previewSection.classList.add('hidden');
+        resultSection.classList.add('hidden');
+        loadingSection.classList.add('hidden');
+        errorSection.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html> 

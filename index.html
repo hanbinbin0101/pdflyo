@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProPDF - 专业PDF转换工具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {},
+      },
+      plugins: [
+        function({ addUtilities, addComponents, e, prefix, config }) {
+          const newUtilities = {
+            '.line-clamp-1': {
+              overflow: 'hidden',
+              display: '-webkit-box',
+              '-webkit-box-orient': 'vertical',
+              '-webkit-line-clamp': '1',
+            },
+            '.line-clamp-2': {
+              overflow: 'hidden',
+              display: '-webkit-box',
+              '-webkit-box-orient': 'vertical',
+              '-webkit-line-clamp': '2',
+            },
+            '.line-clamp-3': {
+              overflow: 'hidden',
+              display: '-webkit-box',
+              '-webkit-box-orient': 'vertical',
+              '-webkit-line-clamp': '3',
+            },
+          }
+          addUtilities(newUtilities)
+        }
+      ],
+    }
+  </script>
+  <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .dropzone {
+      border: 2px dashed #e2e8f0;
+      border-radius: 0.5rem;
+      background: #f8fafc;
+      min-height: 150px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .dropzone:hover {
+      border-color: #cbd5e0;
+      background: #f1f5f9;
+    }
+    .dropzone .dz-message {
+      margin: 0;
+      font-size: 1rem;
+      color: #64748b;
+    }
+    .dropzone .dz-preview {
+      margin: 0.5rem;
+    }
+    .processing-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+    }
+    .progress-bar {
+      width: 300px;
+      height: 8px;
+      background-color: #e2e8f0;
+      border-radius: 4px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #ef4444;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 导航栏 -->
+  <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <span class="text-2xl font-bold text-red-500">Pro<span class="text-gray-800">PDF</span></span>
+          </div>
+          <div class="hidden md:ml-6 md:flex md:space-x-4">
+            <a href="#" class="px-3 py-2 text-sm font-medium text-gray-900 hover:text-red-500">PDF转换</a>
+            <a href="merge-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">合并PDF</a>
+            <a href="split-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">拆分PDF</a>
+            <a href="compress-pdf.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">压缩PDF</a>
+            <a href="more-tools.html" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-500">更多工具</a>
+          </div>
+        </div>
+        <div class="flex items-center">
+          <a href="#" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-900">登录</a>
+          <a href="#" class="ml-4 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600">注册</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主要内容 -->
+  <main class="pt-16">
+    <!-- 头部横幅 -->
+    <div class="bg-white pt-10 pb-8 border-b">
+      <div class="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">您需要的所有PDF工具，一站搞定</h1>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+          在您的指尖，轻松转换、合并、分割和压缩PDF文件。100%免费，简单易用，只需几次点击。
+        </p>
+      </div>
+    </div>
+
+    <!-- 工具卡片区域 -->
+    <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        <!-- PDF转Word卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-blue-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">PDF转Word</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              轻松将PDF文件转换为可编辑的DOC和DOCX格式。转换后的文档保留原始格式，准确率高达98%。
+            </p>
+            <div class="mt-auto">
+              <label for="pdf-to-word" class="block text-center py-3 border border-blue-600 rounded-md text-blue-700 font-medium hover:bg-blue-50 transition-colors duration-300 cursor-pointer">
+                选择PDF文件
+              </label>
+              <input id="pdf-to-word" type="file" accept=".pdf" class="hidden" onchange="directConversion(this, 'pdf-to-word')">
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF转Excel卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-emerald-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">PDF转Excel</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              从PDF中提取数据直接转换到Excel电子表格中，快速导出表格数据，节省手动输入时间。
+            </p>
+            <div class="mt-auto">
+              <label for="pdf-to-excel" class="block text-center py-3 border border-emerald-600 rounded-md text-emerald-700 font-medium hover:bg-emerald-50 transition-colors duration-300 cursor-pointer">
+                选择PDF文件
+              </label>
+              <input id="pdf-to-excel" type="file" accept=".pdf" class="hidden" onchange="directConversion(this, 'pdf-to-excel')">
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF转PPT卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-rose-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-rose-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">PDF转PPT</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              将PDF文件转换为可编辑的PowerPoint演示文稿，保留原始格式和样式，适合编辑修改。
+            </p>
+            <div class="mt-auto">
+              <label for="pdf-to-ppt" class="block text-center py-3 border border-rose-600 rounded-md text-rose-700 font-medium hover:bg-rose-50 transition-colors duration-300 cursor-pointer">
+                选择PDF文件
+              </label>
+              <input id="pdf-to-ppt" type="file" accept=".pdf" class="hidden" onchange="directConversion(this, 'pdf-to-ppt')">
+            </div>
+          </div>
+        </div>
+
+        <!-- Word转PDF卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-purple-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">Word转PDF</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              将Word文档转换为PDF格式，完美保留原始布局、字体和图片，方便分享和打印。
+            </p>
+            <div class="mt-auto">
+              <label for="word-to-pdf" class="block text-center py-3 border border-purple-600 rounded-md text-purple-700 font-medium hover:bg-purple-50 transition-colors duration-300 cursor-pointer">
+                选择Word文件
+              </label>
+              <input id="word-to-pdf" type="file" accept=".doc,.docx" class="hidden" onchange="directConversion(this, 'word-to-pdf')">
+            </div>
+          </div>
+        </div>
+
+        <!-- Excel转PDF卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-teal-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">Excel转PDF</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              将Excel电子表格转换为PDF文档，保持表格格式与数据完整性，适合归档和共享。
+            </p>
+            <div class="mt-auto">
+              <label for="excel-to-pdf" class="block text-center py-3 border border-teal-600 rounded-md text-teal-700 font-medium hover:bg-teal-50 transition-colors duration-300 cursor-pointer">
+                选择Excel文件
+              </label>
+              <input id="excel-to-pdf" type="file" accept=".xls,.xlsx" class="hidden" onchange="directConversion(this, 'excel-to-pdf')">
+            </div>
+          </div>
+        </div>
+
+        <!-- PPT转PDF卡片 -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-64">
+          <div class="p-6 flex-1 flex flex-col">
+            <div class="flex items-center mb-4">
+              <div class="bg-amber-200 p-3 rounded-lg flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              <h2 class="ml-3 text-xl font-semibold text-gray-800">PPT转PDF</h2>
+            </div>
+            <p class="text-gray-600 mb-6 overflow-hidden line-clamp-3">
+              将PowerPoint演示文稿转换为PDF格式，保留原始布局和动画效果，便于跨平台查看。
+            </p>
+            <div class="mt-auto">
+              <label for="ppt-to-pdf" class="block text-center py-3 border border-amber-600 rounded-md text-amber-700 font-medium hover:bg-amber-50 transition-colors duration-300 cursor-pointer">
+                选择PPT文件
+              </label>
+              <input id="ppt-to-pdf" type="file" accept=".ppt,.pptx" class="hidden" onchange="directConversion(this, 'ppt-to-pdf')">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 优势展示区 -->
+    <div class="bg-gray-50 py-12 border-t">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">为什么选择我们的PDF转换工具</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="text-center">
+            <div class="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">高速转换</h3>
+            <p class="text-gray-600">
+              先进的转换引擎，几秒钟内完成各种格式的转换，节省您宝贵的时间。
+            </p>
+          </div>
+          
+          <div class="text-center">
+            <div class="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">隐私保障</h3>
+            <p class="text-gray-600">
+              您的文件完全保密，转换完成后自动删除，确保数据安全不外泄。
+            </p>
+          </div>
+          
+          <div class="text-center">
+            <div class="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">完全免费</h3>
+            <p class="text-gray-600">
+              所有基础功能完全免费使用，无需注册即可享受专业转换服务。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-gray-800 text-white py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div>
+          <h3 class="text-lg font-semibold mb-4">关于我们</h3>
+          <p class="text-gray-400">
+            ProPDF提供专业的PDF解决方案，让文档处理变得简单高效。
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">PDF工具</h3>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#" class="hover:text-white">PDF转Word</a></li>
+            <li><a href="#" class="hover:text-white">PDF转Excel</a></li>
+            <li><a href="#" class="hover:text-white">PDF转PPT</a></li>
+            <li><a href="#" class="hover:text-white">Word转PDF</a></li>
+            <li><a href="#" class="hover:text-white">Excel转PDF</a></li>
+            <li><a href="#" class="hover:text-white">PPT转PDF</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">帮助中心</h3>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#" class="hover:text-white">使用指南</a></li>
+            <li><a href="#" class="hover:text-white">常见问题</a></li>
+            <li><a href="#" class="hover:text-white">联系我们</a></li>
+            <li><a href="#" class="hover:text-white">隐私政策</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3 class="text-lg font-semibold mb-4">关注我们</h3>
+          <div class="flex space-x-4">
+            <a href="#" class="text-gray-400 hover:text-white">
+              <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-white">
+              <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.1 10.1 0 01-3.127 1.184 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-white">
+              <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12 0-6.628-5.373-12-12-12z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+        <p>&copy; 2023 ProPDF. 保留所有权利。</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 处理中覆盖层 -->
+  <div id="processing-overlay" class="processing-overlay hidden">
+    <div class="text-center">
+      <svg class="animate-spin h-12 w-12 text-white mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <h2 id="processing-text" class="text-xl font-bold mb-2">正在处理您的文件...</h2>
+      <p class="text-sm text-gray-200">请稍候，这可能需要几分钟时间</p>
+      <div class="progress-bar">
+        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 调试信息区域 -->
+  <div id="debug-panel" class="fixed bottom-2 right-2 z-50">
+    <button id="debug-toggle" onclick="toggleDebug()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-2 py-1 rounded-md shadow-sm">
+      调试信息
+    </button>
+    <div id="debug-info" class="mt-2 p-2 bg-white border border-gray-300 rounded shadow-lg text-xs text-gray-700 max-h-60 w-80 overflow-auto hidden">
+      <pre id="debug-content" class="whitespace-pre-wrap">准备就绪，等待文件...</pre>
+    </div>
+  </div>
+
+  <!-- JavaScript 功能实现 -->
+  <script>
+    // 全局变量
+    let currentConversion = '';
+    let debugMode = false;
+
+    // 调试日志函数
+    function debugLog(message) {
+      const debugContent = document.getElementById('debug-content');
+      const now = new Date().toLocaleTimeString();
+      debugContent.textContent += `\n[${now}] ${message}`;
+      debugContent.scrollTop = debugContent.scrollHeight;
+      console.log(`[DEBUG] ${message}`);
+    }
+
+    // 切换调试信息显示
+    function toggleDebug() {
+      const debugInfo = document.getElementById('debug-info');
+      debugMode = !debugMode;
+      if (debugMode) {
+        debugInfo.classList.remove('hidden');
+      } else {
+        debugInfo.classList.add('hidden');
+      }
+    }
+
+    // 一步完成文件上传和转换
+    function directConversion(input, conversionType) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      currentConversion = conversionType;
+      
+      // 记录调试信息
+      debugLog(`开始处理${conversionType}：文件名=${file.name}, 大小=${Math.round(file.size / 1024)}KB, 类型=${file.type}`);
+      
+      // 验证文件类型
+      const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      const allowedExtensions = {
+        'pdf-to-word': ['.pdf'],
+        'pdf-to-excel': ['.pdf'],
+        'pdf-to-ppt': ['.pdf'],
+        'word-to-pdf': ['.doc', '.docx'],
+        'excel-to-pdf': ['.xls', '.xlsx'],
+        'ppt-to-pdf': ['.ppt', '.pptx']
+      };
+      
+      const allowedTypes = allowedExtensions[conversionType] || [];
+      if (allowedTypes.length > 0 && !allowedTypes.includes(fileExtension)) {
+        const formatNames = {
+          'pdf-to-word': 'PDF',
+          'pdf-to-excel': 'PDF',
+          'pdf-to-ppt': 'PDF',
+          'word-to-pdf': 'Word',
+          'excel-to-pdf': 'Excel',
+          'ppt-to-pdf': 'PowerPoint'
+        };
+        
+        debugLog(`文件类型不匹配: ${fileExtension}, 需要: ${allowedTypes.join('或')}`);
+        alert(`文件类型不正确。${formatNames[conversionType]}转换需要${allowedTypes.join('或')}格式的文件，但选择的是${fileExtension}格式`);
+        return;
+      }
+      
+      // 验证文件大小
+      if (file.size > 10 * 1024 * 1024) { // 10MB
+        debugLog(`文件过大: ${Math.round(file.size / 1024 / 1024)}MB, 超过10MB限制`);
+        alert('文件过大，请选择小于10MB的文件');
+        return;
+      }
+      
+      // 显示处理中覆盖层
+      const processingOverlay = document.getElementById('processing-overlay');
+      processingOverlay.classList.remove('hidden');
+      
+      // 设置处理文字
+      const conversionTitles = {
+        'pdf-to-word': 'PDF转Word',
+        'pdf-to-excel': 'PDF转Excel',
+        'pdf-to-ppt': 'PDF转PPT',
+        'word-to-pdf': 'Word转PDF',
+        'excel-to-pdf': 'Excel转PDF',
+        'ppt-to-pdf': 'PPT转PDF'
+      };
+      
+      document.getElementById('processing-text').textContent = `正在处理 ${conversionTitles[conversionType]} 转换...`;
+      
+      // 启动进度条动画
+      startProgressBar();
+      
+      // 使用FormData上传文件
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('conversionType', conversionType);
+      
+      debugLog(`发送转换请求: ${file.name}, 类型: ${conversionType}`);
+      
+      // 向后端发送请求
+      fetch('http://localhost:8080/api/convert', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        debugLog(`服务器响应状态码: ${response.status}`);
+        return response.json().then(data => {
+          return { ...data, status: response.status };
+        });
+      })
+      .then(data => {
+        debugLog(`收到服务器响应: ${JSON.stringify(data)}`);
+        
+        if (data.success) {
+          setTimeout(() => {
+            // 隐藏处理中覆盖层
+            document.getElementById('processing-overlay').classList.add('hidden');
+            
+            // 创建一个临时下载链接
+            const downloadLink = data.file.downloadLink;
+            debugLog(`生成下载链接: ${downloadLink}`);
+            
+            // 显示成功消息并提供下载链接
+            const fileName = {
+              'pdf-to-word': '转换后的文档.docx',
+              'pdf-to-excel': '转换后的表格.xlsx',
+              'pdf-to-ppt': '转换后的演示文稿.pptx',
+              'word-to-pdf': '转换后的文档.pdf',
+              'excel-to-pdf': '转换后的表格.pdf',
+              'ppt-to-pdf': '转换后的演示文稿.pdf'
+            }[conversionType];
+            
+            // 使用更现代的通知方式
+            showNotification('转换成功', `文件"${fileName}"已准备好下载`, downloadLink);
+          }, 800);
+        } else {
+          handleError('转换失败', data.message || '未知错误');
+        }
+      })
+      .catch(error => {
+        debugLog(`请求出错: ${error.message}`);
+        handleError('上传错误', '服务器连接失败或处理请求时出错');
+      });
+    }
+
+    // 保留旧的处理文件上传函数，用于兼容性
+    function handleFileUpload(input, conversionType) {
+      directConversion(input, conversionType);
+    }
+
+    // 启动进度条动画
+    function startProgressBar() {
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      progressBarFill.style.width = '0%';
+      let progress = 0;
+      
+      const interval = setInterval(() => {
+        // 进度条速度变化：开始快，接近完成时变慢
+        if (progress < 30) {
+          progress += 0.8;
+        } else if (progress < 60) {
+          progress += 0.5;
+        } else if (progress < 90) {
+          progress += 0.2;
+        } else {
+          progress += 0.05;
+        }
+        
+        if (progress >= 95) {
+          clearInterval(interval);
+          progress = 95; // 保持在95%，等待实际完成
+        }
+        
+        progressBarFill.style.width = `${progress}%`;
+      }, 100);
+      
+      // 保存interval ID，以便在实际完成时可以清除
+      window.progressInterval = interval;
+    }
+
+    // 完成进度条
+    function completeProgressBar() {
+      if (window.progressInterval) {
+        clearInterval(window.progressInterval);
+      }
+      
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      progressBarFill.style.width = '100%';
+    }
+
+    // 处理错误
+    function handleError(title, message) {
+      // 隐藏处理中覆盖层
+      document.getElementById('processing-overlay').classList.add('hidden');
+      
+      // 显示错误消息
+      debugLog(`错误: ${title} - ${message}`);
+      
+      // 创建错误通知元素
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-5 right-5 bg-white rounded-lg shadow-xl p-4 w-80 z-50 transform transition-transform duration-300 translate-y-full';
+      notification.innerHTML = `
+        <div class="flex items-start">
+          <div class="flex-shrink-0 pt-0.5">
+            <svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div class="ml-3 w-0 flex-1">
+            <p class="font-medium text-gray-900">${title}</p>
+            <p class="mt-1 text-sm text-gray-500">${message}</p>
+          </div>
+          <div class="ml-4 flex-shrink-0 flex">
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+              <span class="sr-only">关闭</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // 添加到文档
+      document.body.appendChild(notification);
+      
+      // 显示动画
+      setTimeout(() => {
+        notification.classList.remove('translate-y-full');
+      }, 10);
+      
+      // 设置自动关闭
+      setTimeout(() => {
+        notification.classList.add('translate-y-full');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 10000); // 10秒后自动关闭
+    }
+
+    // 显示通知和下载链接
+    function showNotification(title, message, downloadLink) {
+      completeProgressBar();
+      
+      // 创建通知元素
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-5 right-5 bg-white rounded-lg shadow-xl p-4 w-80 z-50 transform transition-transform duration-300 translate-y-full';
+      notification.innerHTML = `
+        <div class="flex items-start">
+          <div class="flex-shrink-0 pt-0.5">
+            <svg class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="ml-3 w-0 flex-1">
+            <p class="font-medium text-gray-900">${title}</p>
+            <p class="mt-1 text-sm text-gray-500">${message}</p>
+            <div class="mt-2">
+              <a href="${downloadLink}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                下载文件
+              </a>
+            </div>
+          </div>
+          <div class="ml-4 flex-shrink-0 flex">
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+              <span class="sr-only">关闭</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // 添加到文档
+      document.body.appendChild(notification);
+      
+      // 显示动画
+      setTimeout(() => {
+        notification.classList.remove('translate-y-full');
+      }, 10);
+      
+      // 设置自动关闭
+      setTimeout(() => {
+        notification.classList.add('translate-y-full');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 10000); // 10秒后自动关闭
+    }
+  </script>
+</body>
+</html> 
