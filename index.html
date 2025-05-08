@@ -509,7 +509,7 @@
       debugLog(`发送转换请求: ${file.name}, 类型: ${conversionType}`);
       
       // 向后端发送请求
-      fetch('http://localhost:8080/api/convert', {
+      fetch('/api/convert', {
         method: 'POST',
         body: formData
       })

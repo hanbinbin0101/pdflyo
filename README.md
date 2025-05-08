@@ -22,14 +22,17 @@ ProPDF是一个基于Web的PDF格式转换工具，支持以下格式的相互�
 - **前端**: HTML, CSS (Tailwind CSS), JavaScript
 - **后端**: Node.js, Express
 - **文件处理**: Multer
-- **文档转换**: LibreOffice (命令行模式)
+- **文档转换**:
+  - **本地环境**: LibreOffice (命令行模式)
+  - **Vercel环境**: Cloudmersive API
 
 ## 安装与运行
 
 ### 前提条件
 
 1. 安装Node.js (推荐v14+)
-2. 安装LibreOffice (用于文档转换)
+2. 本地开发需要安装LibreOffice (用于文档转换)
+3. Vercel部署需要Cloudmersive API密钥
 
 ### 安装步骤
 
@@ -46,7 +49,7 @@ cd propdf
 npm install
 ```
 
-3. 确保LibreOffice已安装，并且`soffice`命令可用:
+3. 本地开发时，确保LibreOffice已安装，并且`soffice`命令可用:
 
 ```bash
 # 在Linux/Mac上
@@ -56,67 +59,81 @@ which soffice
 where soffice
 ```
 
-4. 启动服务器:
+4. 创建环境变量文件:
+
+```bash
+# 创建.env文件
+cp .env.example .env
+# 编辑.env文件，填入Cloudmersive API密钥
+```
+
+5. 启动服务器:
 
 ```bash
 npm start
 ```
 
-5. 访问应用:
+6. 访问应用:
 
-在浏览器中打开 [http://localhost:3000](http://localhost:3000)
+在浏览器中打开 [http://localhost:8080](http://localhost:8080)
 
-## 部署说明
+## Vercel部署说明
 
-### 在Linux服务器上部署
+### 1. 准备工作
 
-1. 安装必要的依赖:
+1. 注册[Cloudmersive API](https://cloudmersive.com/)账号并获取API密钥
+2. 在[Vercel](https://vercel.com/)注册账号并连接到您的GitHub仓库
 
-```bash
-sudo apt update
-sudo apt install -y libreoffice nodejs npm
-```
+### 2. 配置环境变量
 
-2. 配置反向代理 (使用Nginx):
+在Vercel项目设置中，添加以下环境变量:
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
+- `CLOUDMERSIVE_API_KEY` - 您的Cloudmersive API密钥
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
+### 3. 部署项目
 
-3. 使用PM2运行应用:
+1. 确保您的项目包含正确的`vercel.json`配置文件
+2. 通过Vercel控制台部署项目，或推送代码到GitHub触发自动部署
 
-```bash
-npm install -g pm2
-pm2 start server.js --name propdf
-pm2 startup
-pm2 save
-```
+### 4. 验证部署
 
-## 使用说明
+1. 部署完成后，使用simple-test.html页面测试API连接状态
+2. 检查您的Cloudmersive API配额和使用情况
 
-1. 在首页选择所需的转换功能
-2. 点击上传按钮或拖放文件到上传区域
-3. 等待转换完成
-4. 点击下载按钮获取转换后的文件
+### 注意事项
 
-## 注意事项
+- Vercel环境中无法使用LibreOffice，必须使用Cloudmersive API
+- Cloudmersive API有调用限制，请注意控制使用量
+- Vercel的Serverless函数有执行时间限制，大文件可能会超时
 
-- 默认最大支持10MB的文件上传
-- 转换速度取决于服务器配置和文档复杂度
-- 转换后的Office文档可能与原始布局略有差异
-- 部分特殊格式或嵌入内容可能无法正确转换
+## 本地开发与Vercel部署的区别
+
+| 功能 | 本地开发 | Vercel部署 |
+|------|---------|------------|
+| 文档转换 | LibreOffice | Cloudmersive API |
+| 临时文件存储 | 本地文件系统 | /tmp目录 (有限制) |
+| 运行环境 | 长时间运行的服务器 | Serverless函数 |
+| 执行时间限制 | 无限制 | 最大300秒 |
+| API密钥要求 | 可选 | 必需 |
+
+## 故障排除
+
+### Vercel部署问题
+
+1. **API连接错误**:
+   - 检查环境变量是否正确配置
+   - 使用simple-test.html页面测试API状态
+   - 查看Vercel日志获取详细错误信息
+
+2. **文件转换失败**:
+   - 确认Cloudmersive API密钥有效且未达到使用限制
+   - 检查上传的文件大小和格式是否符合要求
+   - 大文件可能需要增加函数超时时间(在vercel.json中配置)
+
+3. **上传错误**:
+   - 检查文件上传大小限制
+   - 确认文件格式兼容性
+   - 检查Vercel临时存储空间限制
 
 ## 许可证
 
