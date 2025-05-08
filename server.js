@@ -1,3 +1,6 @@
+// 加载环境变量
+require('dotenv').config();
+
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -10,9 +13,18 @@ const docx = require('docx');
 const pptxgenjs = require('pptxgenjs');
 const { PDFDocument } = require('pdf-lib');
 const PDF2Json = require('pdf2json');
+// 添加Cloudmersive API客户端
+const CloudmersiveConvertApiClient = require('cloudmersive-convert-api-client');
 
 const app = express();
 const port = process.env.PORT || 8080;
+
+// 配置Cloudmersive API客户端
+const cloudmersiveClient = CloudmersiveConvertApiClient.ApiClient.instance;
+// 配置API密钥
+const apiKey = cloudmersiveClient.authentications['Apikey'];
+apiKey.apiKey = process.env.CLOUDMERSIVE_API_KEY;
+console.log('Cloudmersive API密钥已配置:', process.env.CLOUDMERSIVE_API_KEY ? '成功' : '失败');
 
 // 添加CORS支持
 app.use((req, res, next) => {
@@ -34,7 +46,8 @@ app.use(express.static(path.join(__dirname, '/')));
 // 配置文件上传的存储
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads');
+    // 使用/tmp目录以兼容Vercel环境
+    const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -64,7 +77,7 @@ const upload = multer({
 });
 
 // 创建转换文件的目录
-const outputDir = path.join(__dirname, 'converted');
+const outputDir = process.env.VERCEL ? '/tmp/converted' : path.join(__dirname, 'converted');
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
@@ -77,6 +90,11 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     if (!req.file) {
       console.log('没有收到文件');
       return res.status(400).json({ success: false, message: '没有上传文件' });
+    }
+
+    // 添加Vercel环境检测
+    if (process.env.VERCEL) {
+      console.log('运行在Vercel环境中，API密钥状态:', process.env.CLOUDMERSIVE_API_KEY ? '已配置' : '未配置');
     }
 
     console.log('文件上传成功:', req.file.originalname);
@@ -571,238 +589,75 @@ app.post('/api/compress-pdf', upload.single('file'), async (req, res) => {
   }
 });
 
-// 执行文件转换的函数
-function convertFile(inputFile, outputFile, conversionType) {
+// 使用Cloudmersive API进行文件转换
+async function convertWithCloudmersive(inputFile, outputFile, conversionType) {
   return new Promise(async (resolve, reject) => {
     try {
-      // 检查输入文件是否存在
-      if (!fs.existsSync(inputFile)) {
-        console.error(`输入文件不存在: ${inputFile}`);
-        return reject(new Error(`输入文件不存在: ${inputFile}`));
-      }
-
-      // 确保输出目录存在
-      const outputDir = path.dirname(outputFile);
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-        console.log(`创建输出目录: ${outputDir}`);
-      }
-
-      // 选择转换方法
+      console.log(`使用Cloudmersive API转换，类型: ${conversionType}`);
+      
+      // 读取输入文件
+      const inputData = fs.readFileSync(inputFile);
+      
+      // 创建API实例
+      const convertApi = new CloudmersiveConvertApiClient.ConvertDocumentApi();
+      
+      // 设置API客户端超时
+      const apiClient = convertApi.apiClient;
+      apiClient.timeout = 60000; // 60秒超时
+      
+      let apiFunction;
+      let requestData = inputData;
+      
+      // 根据转换类型选择相应的API函数
       switch (conversionType) {
-        case 'pdf-to-word':
-          await convertPdfToWord(inputFile, outputFile);
-          break;
-        case 'pdf-to-excel':
-          await convertPdfToExcel(inputFile, outputFile);
-          break;
-        case 'pdf-to-ppt':
-          await convertPdfToPpt(inputFile, outputFile);
-          break;
         case 'word-to-pdf':
+          apiFunction = convertApi.convertDocumentDocxToPdf.bind(convertApi);
+          break;
         case 'excel-to-pdf':
+          apiFunction = convertApi.convertDocumentXlsxToPdf.bind(convertApi);
+          break;
         case 'ppt-to-pdf':
-          // 这些格式仍然使用LibreOffice转换
-          await convertWithLibreOffice(inputFile, outputFile, conversionType);
+          apiFunction = convertApi.convertDocumentPptxToPdf.bind(convertApi);
           break;
         default:
           return reject(new Error('不支持的转换类型'));
       }
-
-      // 检查输出文件是否生成
-      if (!fs.existsSync(outputFile)) {
-        return reject(new Error('转换失败，未能生成输出文件'));
-      }
-
-      console.log(`文件成功转换为: ${outputFile}`);
-      resolve(outputFile);
-    } catch (error) {
-      console.error(`转换过程中发生异常: ${error.message}`);
-      reject(new Error(`文件转换失败: ${error.message}`));
-    }
-  });
-}
-
-// PDF转Word转换函数
-async function convertPdfToWord(inputFile, outputFile) {
-  console.log('使用专业方法转换PDF到Word...');
-  
-  try {
-    // 读取PDF文件
-    const dataBuffer = fs.readFileSync(inputFile);
-    const pdfData = await pdfParse(dataBuffer);
-    
-    // 使用docx库创建Word文档
-    const { Document, Paragraph, TextRun, Packer } = docx;
-    
-    // 分割PDF文本内容为段落
-    const textContent = pdfData.text;
-    const paragraphs = textContent.split('\n').filter(line => line.trim() !== '');
-    
-    // 创建段落对象数组
-    const docParagraphs = paragraphs.map(text => {
-      return new Paragraph({
-        children: [
-          new TextRun({
-            text: text,
-            size: 24
-          })
-        ]
-      });
-    });
-    
-    // 创建文档
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: docParagraphs
-        }
-      ]
-    });
-    
-    // 将内容写入输出文件
-    const buffer = await Packer.toBuffer(doc);
-    fs.writeFileSync(outputFile, buffer);
-    
-    console.log('PDF成功转换为Word文档');
-    return true;
-  } catch (error) {
-    console.error('PDF转Word失败:', error);
-    throw new Error('无法将PDF转换为Word格式: ' + error.message);
-  }
-}
-
-// PDF转Excel转换函数
-async function convertPdfToExcel(inputFile, outputFile) {
-  console.log('使用专业方法转换PDF到Excel...');
-  
-  try {
-    // 使用pdf2json解析PDF中的表格数据
-    const pdfParser = new PDF2Json();
-    
-    const pdfData = await new Promise((resolve, reject) => {
-      pdfParser.on("pdfParser_dataError", errData => reject(errData.parserError));
-      pdfParser.on("pdfParser_dataReady", pdfData => {
-        resolve(pdfData);
-      });
       
-      pdfParser.loadPDF(inputFile);
-    });
-    
-    // 创建Excel工作簿
-    const workbook = XLSX.utils.book_new();
-    
-    // 处理每一页
-    for (let pageIndex = 0; pageIndex < pdfData.Pages.length; pageIndex++) {
-      const page = pdfData.Pages[pageIndex];
-      const rows = [];
+      // 设置超时
+      const timeoutId = setTimeout(() => {
+        reject(new Error('API请求超时，请稍后再试或减小文件大小'));
+      }, 55000); // 55秒超时
       
-      // 组织文本数据到行和列
-      // 首先，按y坐标分组所有文本元素
-      const textByY = {};
-      
-      for (const text of page.Texts) {
-        // 将Y坐标四舍五入到最接近的整数，实现近似行分组
-        const yPos = Math.round(text.y * 10);
-        if (!textByY[yPos]) {
-          textByY[yPos] = [];
+      // 调用API进行转换
+      apiFunction(Buffer.from(requestData), (error, data, response) => {
+        clearTimeout(timeoutId); // 清除超时
+        
+        if (error) {
+          console.error('转换API调用失败:', error);
+          return reject(new Error(`API调用失败: ${error.message}`));
         }
         
-        // 添加文本和它的X位置
-        textByY[yPos].push({
-          x: text.x,
-          text: decodeURIComponent(text.R[0].T)
-        });
-      }
-      
-      // 对每个Y位置的文本按X排序并创建行
-      const yPositions = Object.keys(textByY).sort((a, b) => a - b);
-      
-      for (const yPos of yPositions) {
-        const sortedTexts = textByY[yPos].sort((a, b) => a.x - b.x);
-        const rowValues = sortedTexts.map(item => item.text);
-        rows.push(rowValues);
-      }
-      
-      // 创建工作表并添加到工作簿
-      if (rows.length > 0) {
-        const worksheet = XLSX.utils.aoa_to_sheet(rows);
-        XLSX.utils.book_append_sheet(workbook, worksheet, `Page_${pageIndex + 1}`);
-      }
+        // 将返回的数据写入输出文件
+        fs.writeFileSync(outputFile, data);
+        console.log(`Cloudmersive API转换成功，文件保存到: ${outputFile}`);
+        resolve(outputFile);
+      });
+    } catch (error) {
+      console.error('Cloudmersive转换错误:', error);
+      reject(new Error(`Cloudmersive转换失败: ${error.message}`));
     }
-    
-    // 写入Excel文件
-    XLSX.writeFile(workbook, outputFile);
-    
-    console.log('PDF成功转换为Excel');
-    return true;
-  } catch (error) {
-    console.error('PDF转Excel失败:', error);
-    throw new Error('无法将PDF转换为Excel格式: ' + error.message);
-  }
-}
-
-// PDF转PPT转换函数
-async function convertPdfToPpt(inputFile, outputFile) {
-  console.log('使用专业方法转换PDF到PPT...');
-  
-  try {
-    // 读取PDF文件
-    const dataBuffer = fs.readFileSync(inputFile);
-    const pdfData = await pdfParse(dataBuffer);
-    
-    // 使用pdf-lib获取页面数量
-    const pdfDoc = await PDFDocument.load(dataBuffer);
-    const pages = pdfDoc.getPages();
-    
-    // 创建PPT演示文稿
-    const pptx = new pptxgenjs();
-    
-    // 为每一页PDF创建一个幻灯片
-    for (let i = 0; i < pages.length; i++) {
-      const slide = pptx.addSlide();
-      
-      // 提取当前页面的文本
-      const page = pages[i];
-      const { width, height } = page.getSize();
-      
-      // 提取文本内容
-      const pageText = pdfData.text.split('\n').filter(line => line.trim() !== '');
-      
-      // 向幻灯片添加文本
-      const textsPerPage = Math.ceil(pageText.length / pages.length);
-      const startIdx = i * textsPerPage;
-      const endIdx = Math.min(startIdx + textsPerPage, pageText.length);
-      
-      for (let j = startIdx; j < endIdx; j++) {
-        if (pageText[j]) {
-          slide.addText(pageText[j], {
-            x: 0.5,
-            y: 0.5 + (j - startIdx) * 0.5,
-            w: '90%',
-            fontSize: 14,
-            color: '363636'
-          });
-        }
-      }
-    }
-    
-    // 写入PPT文件
-    await pptx.writeFile({ fileName: outputFile });
-    
-    console.log('PDF成功转换为PPT');
-    return true;
-  } catch (error) {
-    console.error('PDF转PPT失败:', error);
-    throw new Error('无法将PDF转换为PPT格式: ' + error.message);
-  }
+  });
 }
 
 // 使用LibreOffice进行其他格式的转换
 async function convertWithLibreOffice(inputFile, outputFile, conversionType) {
   return new Promise((resolve, reject) => {
     try {
+      // 在Vercel环境中，直接返回错误
+      if (process.env.VERCEL) {
+        return reject(new Error('在Vercel环境中不支持LibreOffice转换，请在本地环境中使用此功能'));
+      }
+
       // 创建临时工作目录
       const tempDir = path.join(__dirname, 'temp');
       if (!fs.existsSync(tempDir)) {
@@ -1060,9 +915,103 @@ async function compressPdf(inputPath, outputPath, compressionLevel = 'medium') {
   }
 }
 
+// 执行文件转换的函数
+function convertFile(inputFile, outputFile, conversionType) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // 检查输入文件是否存在
+      if (!fs.existsSync(inputFile)) {
+        console.error(`输入文件不存在: ${inputFile}`);
+        return reject(new Error(`输入文件不存在: ${inputFile}`));
+      }
+
+      // 确保输出目录存在
+      const outputDir = path.dirname(outputFile);
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        console.log(`创建输出目录: ${outputDir}`);
+      }
+
+      // 选择转换方法
+      switch (conversionType) {
+        case 'pdf-to-word':
+          await convertPdfToWord(inputFile, outputFile);
+          break;
+        case 'pdf-to-excel':
+          await convertPdfToExcel(inputFile, outputFile);
+          break;
+        case 'pdf-to-ppt':
+          await convertPdfToPpt(inputFile, outputFile);
+          break;
+        case 'word-to-pdf':
+        case 'excel-to-pdf':
+        case 'ppt-to-pdf':
+          // 在Vercel环境中使用Cloudmersive API，否则使用LibreOffice
+          if (process.env.VERCEL) {
+            await convertWithCloudmersive(inputFile, outputFile, conversionType);
+          } else {
+            await convertWithLibreOffice(inputFile, outputFile, conversionType);
+          }
+          break;
+        default:
+          return reject(new Error('不支持的转换类型'));
+      }
+
+      // 检查输出文件是否生成
+      if (!fs.existsSync(outputFile)) {
+        return reject(new Error('转换失败，未能生成输出文件'));
+      }
+
+      console.log(`文件成功转换为: ${outputFile}`);
+      resolve(outputFile);
+    } catch (error) {
+      console.error(`转换过程中发生异常: ${error.message}`);
+      reject(new Error(`文件转换失败: ${error.message}`));
+    }
+  });
+}
+
+// 添加一个诊断路由，检查配置
+app.get('/api/diagnostics', (req, res) => {
+  const diagnostics = {
+    environment: process.env.VERCEL ? 'Vercel' : 'Local',
+    node_version: process.version,
+    api_key_configured: !!process.env.CLOUDMERSIVE_API_KEY,
+    memory_limit: process.env.VERCEL_REGION || 'unknown',
+    temp_directory: {
+      exists: fs.existsSync('/tmp'),
+      writable: true // 假设可写
+    }
+  };
+  
+  // 尝试写入临时文件测试权限
+  try {
+    const testFile = '/tmp/test-write-' + Date.now() + '.txt';
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile);
+    diagnostics.temp_directory.writable = true;
+  } catch (error) {
+    diagnostics.temp_directory.writable = false;
+    diagnostics.temp_directory.error = error.message;
+  }
+  
+  res.json(diagnostics);
+});
+
 // 添加全局错误处理中间件
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err);
+  
+  // 处理Cloudmersive API相关错误
+  if (err.message && err.message.includes('API')) {
+    return res.status(500).json({
+      success: false,
+      message: '文档转换API服务出错，请稍后再试',
+      error: err.message,
+      isApiError: true
+    });
+  }
+  
   res.status(500).json({
     success: false,
     message: '服务器内部错误',

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF转换测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .error-message {
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .success-message {
+            color: green;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h1 class="text-xl font-bold mb-4">PDF转换测试</h1>
+        
+        <div class="mb-4">
+            <h2 class="font-semibold mb-2">Word转PDF测试</h2>
+            <form id="word-to-pdf-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">选择Word文件</label>
+                    <input type="file" name="file" accept=".doc,.docx" class="mt-1 block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md">
+                    转换为PDF
+                </button>
+            </form>
+            <div id="word-to-pdf-result" class="mt-4"></div>
+        </div>
+        
+        <div class="mb-4">
+            <h2 class="font-semibold mb-2">PDF转Word测试</h2>
+            <form id="pdf-to-word-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">选择PDF文件</label>
+                    <input type="file" name="file" accept=".pdf" class="mt-1 block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md">
+                    转换为Word
+                </button>
+            </form>
+            <div id="pdf-to-word-result" class="mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Word转PDF表单处理
+            const wordToPdfForm = document.getElementById('word-to-pdf-form');
+            const wordToPdfResult = document.getElementById('word-to-pdf-result');
+            
+            wordToPdfForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                wordToPdfResult.innerHTML = '<p>正在处理，请稍候...</p>';
+                
+                const formData = new FormData(wordToPdfForm);
+                formData.append('conversionType', 'word-to-pdf');
+                
+                try {
+                    const response = await fetch('/api/convert', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        wordToPdfResult.innerHTML = `
+                            <p class="success-message">转换成功!</p>
+                            <a href="${result.file.downloadLink}" class="block mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-center">
+                                下载转换后的文件
+                            </a>
+                            <p class="mt-2 text-sm text-gray-500">文件大小: ${formatFileSize(result.file.size)}</p>
+                        `;
+                    } else {
+                        wordToPdfResult.innerHTML = `<p class="error-message">转换失败: ${result.message || '未知错误'}</p>`;
+                        
+                        // 详细错误调试信息
+                        if (result.error) {
+                            console.error('API错误详情:', result.error);
+                            wordToPdfResult.innerHTML += `<p class="text-sm text-gray-500">错误详情: ${result.error}</p>`;
+                        }
+                        
+                        // 检查是否是API相关错误
+                        if (result.isApiError) {
+                            wordToPdfResult.innerHTML += `
+                                <p class="text-sm mt-2">请检查API配置是否正确，或稍后再试。</p>
+                            `;
+                        }
+                    }
+                } catch (error) {
+                    console.error('请求错误:', error);
+                    wordToPdfResult.innerHTML = `<p class="error-message">请求失败: ${error.message}</p>`;
+                }
+            });
+            
+            // PDF转Word表单处理
+            const pdfToWordForm = document.getElementById('pdf-to-word-form');
+            const pdfToWordResult = document.getElementById('pdf-to-word-result');
+            
+            pdfToWordForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                pdfToWordResult.innerHTML = '<p>正在处理，请稍候...</p>';
+                
+                const formData = new FormData(pdfToWordForm);
+                formData.append('conversionType', 'pdf-to-word');
+                
+                try {
+                    const response = await fetch('/api/convert', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        pdfToWordResult.innerHTML = `
+                            <p class="success-message">转换成功!</p>
+                            <a href="${result.file.downloadLink}" class="block mt-2 py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md text-center">
+                                下载转换后的文件
+                            </a>
+                            <p class="mt-2 text-sm text-gray-500">文件大小: ${formatFileSize(result.file.size)}</p>
+                        `;
+                    } else {
+                        pdfToWordResult.innerHTML = `<p class="error-message">转换失败: ${result.message || '未知错误'}</p>`;
+                        
+                        if (result.error) {
+                            console.error('API错误详情:', result.error);
+                        }
+                    }
+                } catch (error) {
+                    console.error('请求错误:', error);
+                    pdfToWordResult.innerHTML = `<p class="error-message">请求失败: ${error.message}</p>`;
+                }
+            });
+            
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+                else return (bytes / 1048576).toFixed(2) + ' MB';
+            }
+        });
+    </script>
+</body>
+</html> 
